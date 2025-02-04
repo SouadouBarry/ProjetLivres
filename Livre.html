@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Library Management System</title>
+    <style>
+        body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 20px;
+}
+
+h1 {
+    color: #333;
+}
+
+#Livre-list {
+    margin-top: 20px;
+}
+
+.Livre {
+    background: #fff;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+button {
+    padding: 10px 15px;
+    margin: 5px;
+    background-color: #31373d;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #41464b;
+}
+
+input {
+    padding: 10px;
+    margin: 5px;
+    width: 200px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+#add-Livre-form{
+    border: 1px solid black; 
+    border-radius: 10px;
+
+
+}
+
+
+    </style>
+</head>
+<body>
+    <h1>Gestion de Bibliothèque</h1>
+    <button onclick="showAddBookForm()">Ajout de Livres</button>
+
+    <div id="Livre-list"></div>
+
+    <div id="add-Livre-form" style="display:none;">
+        <h2>Ajouter un Livre</h2>
+        <input type="text" id="Titre" placeholder="Titre">
+        <input type="text" id="Auteur" placeholder="Auteur">
+        <input type="text" id="edition" placeholder="edition">
+        <input type="number" id="durée" placeholder="durée (jours)">
+        <button onclick="addLivre()">Ajouter</button>
+    </div>
+
+<script>
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadLivres();
+});
+//Fonction pour charger les livres
+function loadLivres() {
+ 
+    console.log('Chargement des livres en cours...'); // Vérifie si ce message s'affiche
+
+    fetch('/api/Livre')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+            console.log(response.json)
+        })
+        .then(data => {
+            console.log('Données reçues:', data);  // Vérifie les données reçues
+            const LivreList = document.getElementById('Livre-list');
+            LivreList.innerHTML = '';
+            data.forEach(Livre => {
+                const LivreDiv = document.createElement('div');
+                LivreDiv.classList.add('Livre');
+                LivreDiv.innerHTML = `
+                    <h3>${Livre.Titre} by ${Livre.Auteur} (${Livre.edition})</h3>
+                    <p>Duration: ${Livre.durée} jours</p>
+                    <p>Status: ${Livre.Disponibilité ? 'Disponible' : 'Indisponible'}</p>
+                    <button onclick="showUpdateForm(${Livre.id}, '${Livre.Titre}', '${Livre.Auteur}', '${Livre.edition}', ${Livre.durée})">Modifier</button>
+                    <button onclick="deleteBook(${Livre.id})">Supprimer</button>
+                    ${Livre.Disponibilité 
+                        ? `<button onclick="loanBook(${Livre.id})">Emprunter</button>` 
+                        : `<button onclick="returnBook(${Livre.id})">Retourner</button>`}
+                `;
+                LivreList.appendChild(LivreDiv);
+            });
+        })
+        .catch(error => {
+            console.error('Erreur lors du chargement des livres:', error);
+        });
+
+
+}
+
+function showAddBookForm() {
+    document.getElementById('add-Livre-form').style.display = 'block';
+}
+// Fonction pour ajouter un livre
+function addLivre() {
+    const Titre = document.getElementById('Titre').value;
+    const Auteur = document.getElementById('Auteur').value;
+    const edition = document.getElementById('edition').value;
+    const durée = document.getElementById('durée').value;
+    fetch('/Livre', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ Titre, Auteur, edition, durée })
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(data.message);
+        loadLivres();
+        document.getElementById('add-Livre-form').style.display = 'none';
+    });
+}
+//Fonction pour modiffier le livre
+function showUpdateForm(LivreId, Titre, Auteur, edition, durée) {
+    const newTitre = prompt("Entrer un titre:", Titre);
+    const newAuteur = prompt("Entrer un Auteur:", Auteur);
+    const newEdition = prompt("Entrer une edition:", edition);
+    const newdurée = prompt("Entrer une durée (jours):", durée);
+    fetch(`/Livre/${LivreId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ Titre: newTitre, Auteur: newAuteur, edition: newEdition, durée: newdurée })
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(data.message);
+        loadLivres();
+    });
+}
+//Fonction pour supprimer le livre
+function deleteBook(LivreId) {
+    if (confirm("Etes vous sur de vouloir supprimer ce livre?")) {
+        fetch(`/Livre/${LivreId}`, { method: 'DELETE' })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                loadLivres();
+            });
+    }
+}
+//Fonction pour Emprunté le livre
+function loanBook(LivreId) {
+    const Etudiant = prompt("Entrer le nom de l'\Etudiant:");
+    const Date_due = prompt("Entrer une date (YYYY-MM-DD):");
+    fetch(`/Emprunt/${LivreId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ Livre_id: LivreId, Etudiant, date_due: Date_due })
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(data.message);
+        loadLivres();
+    });
+}
+//Fonction pour retourné le livre
+function returnBook(LivreId) {
+    fetch(`/return/${LivreId}`, { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            alert(data.message);
+            loadLivres();
+        });
+}
+
+
+
+    </script>
+</body>
+</html>
